@@ -256,6 +256,11 @@ wheels = [
 ]
 
 [[package]]
+name = "hnsw-py"
+version = "0.1.0"
+source = { editable = "../../apps/hnsw.py" }
+
+[[package]]
 name = "hnswlib"
 version = "0.10.0rc2"
 source = { directory = "../../vendors/hnswlib" }
@@ -762,6 +767,7 @@ name = "vecsearch-bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "hnsw-py" },
     { name = "hnswlib" },
     { name = "matplotlib" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -770,6 +776,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "hnsw-py", editable = "../../apps/hnsw.py" },
     { name = "hnswlib", directory = "../../vendors/hnswlib" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "numpy", specifier = ">=1.26" },

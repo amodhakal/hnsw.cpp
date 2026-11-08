@@ -22,8 +22,7 @@ Other useful commands:
 ```bash
 uv run vecbench list
 uv run vecbench show-config --preset default
-uv run vecbench run --preset smoke
-uv run vecbench run --preset compare_m
+uv run vecbench run --preset fast
 uv run vecbench run --preset default --n 50000 --queries 500
 uv run vecbench run --preset default --ef 10,20,40,80
 ```
@@ -38,19 +37,21 @@ presets, and benchmark-system API.
 | `scripts/bench/`          | Python benchmark harness (uv project)      |
 | `vendors/hnswlib/`        | Baseline HNSW implementation               |
 | `vendors/ann-benchmarks/` | Reference dataset and algorithm collection |
-| `apps/`                   | Applications built on VecSearch            |
+| `apps/`                   | In-repo algorithm implementations          |
 
 ## Algorithms
 
 | Algorithm | Status   | Notes                                                    |
 | --------- | -------- | -------------------------------------------------------- |
 | hnswlib   | Included | Baseline; HNSW with cosine, L2, and inner-product spaces |
+| hnsw.py   | Included | Pure-Python HNSW; cosine, L2, and inner-product spaces   |
 
 New algorithms are added to the same benchmark graph as they are implemented.
 
 ## Adding an algorithm
 
-1. Add the library under `vendors/`.
+1. Add the library under `apps/<name>/` for an in-repo implementation, or
+   `vendors/<name>/` for an external/reference library used as a control.
 2. Create `scripts/bench/bench/systems/<name>.py` with functions for:
    - building an index
    - applying query parameters
@@ -70,11 +71,12 @@ No changes to the runner, metrics, report, or CLI are required.
 - Seeded synthetic clustered Gaussian vectors are generated once per run.
 - Exact ground truth is computed in chunked NumPy using the same metric.
 - Each configured benchmark builds its own index and sweeps its query
-  parameters (`ef_search` for hnswlib).
+  parameters (`ef` for hnswlib and hnsw.py).
 - Sequential mode times one query at a time and reports p50/p95/p99 latency.
-- Batch mode uses the library's multi-threaded path for throughput.
+- Batch mode calls the library's batch query path for throughput.
 - Recall@k, QPS, and latency are recorded per sweep point; QPS is the median
   over repeated runs.
 
-The default preset is sized for an Apple M1 Air with 8 GB RAM. Increase
-`--n` for a heavier run.
+The `fast` preset is sized for an Apple M1 Air with 8 GB RAM and includes
+every registered system. The 1M `default` preset is heavier; increase `--n`
+for an even longer run.

@@ -25,47 +25,17 @@ PRESETS = {
         "output": {"dir": "results", "format": "png"},
         "benchmarks": "all",
     },
-    "smoke": {
+    "fast": {
         "dataset": {
-            "n": 100_000,
+            "n": 80_000,
             "dim": 128,
-            "queries": 2_000,
+            "queries": 10_000,
             "clusters": 100,
             "cluster_std": 0.05,
             "seed": 42,
         },
         "metrics": {"k": 10, "reps": 1, "warmup": 20},
         "output": {"dir": "results", "format": "png"},
-        "benchmarks": [
-            {
-                "library": "hnswlib",
-                "label": "hnswlib M=16",
-                "params": {"sweep": {"ef": [10, 40, 160]}},
-            }
-        ],
-    },
-    "compare_m": {
-        "dataset": {
-            "n": 1_000_000,
-            "dim": 128,
-            "queries": 10_000,
-            "clusters": 1_000,
-            "cluster_std": 0.05,
-            "seed": 42,
-        },
-        "metrics": {"k": 10, "reps": 5, "warmup": 100},
-        "output": {"dir": "results", "format": "png"},
-        "benchmarks": [
-            {
-                "library": "hnswlib",
-                "label": "hnswlib M=16",
-                "params": {"m": 16, "ef_construction": 200},
-            },
-            {
-                "library": "hnswlib",
-                "label": "hnswlib M=32",
-                "params": {"m": 32, "ef_construction": 200},
-            },
-        ],
+        "benchmarks": "all",
     },
 }

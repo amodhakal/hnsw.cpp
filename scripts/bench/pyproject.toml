@@ -7,6 +7,7 @@ dependencies = [
     "numpy>=1.26",
     "matplotlib>=3.8",
     "hnswlib",
+    "hnsw-py",
 ]
 
 [project.scripts]
@@ -14,6 +15,7 @@ vecbench = "bench.cli:main"
 
 [tool.uv.sources]
 hnswlib = { path = "../../vendors/hnswlib" }
+hnsw-py = { path = "../../apps/hnsw.py", editable = true }
 
 [build-system]
 requires = ["hatchling"]
