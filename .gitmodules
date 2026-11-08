@@ -1,0 +1,6 @@
+[submodule "vendors/ann-benchmarks"]
+	path = vendors/ann-benchmarks
+	url = git@github.com:erikbern/ann-benchmarks.git
+[submodule "vendors/hnswlib"]
+	path = vendors/hnswlib
+	url = git@github.com:nmslib/hnswlib.git

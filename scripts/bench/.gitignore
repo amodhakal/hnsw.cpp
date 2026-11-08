@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.py[cod]
+results/*
+!results/most_recent.png
+!results/most_recent.jpg
