@@ -60,11 +60,13 @@ void Index::add_item(const float* vector, std::optional<std::uint64_t> label) {
     if (vector == nullptr) {
         throw std::invalid_argument("vector must not be null");
     }
-    if (prepare_buffer_.size() < config_.dim) {
-        prepare_buffer_.resize(config_.dim);
+    if (quantization_buffer_.size() < config_.dim) {
+        quantization_buffer_.resize(config_.dim);
     }
-    prepare_into(vector, prepare_buffer_.data());
-    insert_prepared(prepare_buffer_.data(), label);
+    float scale = 0.0f;
+    float abs2 = 0.0f;
+    quantize_into(vector, quantization_buffer_.data(), scale, abs2);
+    insert_prepared(quantization_buffer_.data(), scale, abs2, label);
 }
 
 void Index::add_item(const std::vector<float>& vector,
@@ -97,51 +99,92 @@ void Index::set_ef(std::size_t ef) {
     config_.ef_search = ef;
 }
 
-void Index::prepare_into(const float* vector, float* out) const {
-    std::memcpy(out, vector, config_.dim * sizeof(float));
-    if (config_.space != Space::Cosine) {
+void Index::quantize_into(const float* vector,
+                          std::int16_t* out,
+                          float& scale,
+                          float& abs2) const {
+    float inverse = 1.0f;
+    if (config_.space == Space::Cosine) {
+        double norm_sq = 0.0;
+        for (std::size_t i = 0; i < config_.dim; ++i) {
+            const double value = static_cast<double>(vector[i]);
+            norm_sq += value * value;
+        }
+        inverse = norm_sq == 0.0
+                      ? 0.0f
+                      : 1.0f / static_cast<float>(std::sqrt(norm_sq));
+    }
+
+    float max_abs = 0.0f;
+    for (std::size_t i = 0; i < config_.dim; ++i) {
+        max_abs = std::max(max_abs, std::fabs(vector[i] * inverse));
+    }
+
+    if (max_abs == 0.0f) {
+        std::fill(out, out + config_.dim, static_cast<std::int16_t>(0));
+        scale = 0.0f;
+        abs2 = 0.0f;
         return;
     }
 
-    double norm_sq = 0.0;
+    scale = max_abs / 32767.0f;
+    double sum_sq = 0.0;
     for (std::size_t i = 0; i < config_.dim; ++i) {
-        const double value = static_cast<double>(vector[i]);
-        norm_sq += value * value;
-    }
-    if (norm_sq == 0.0) {
-        std::fill(out, out + config_.dim, 0.0f);
-        return;
+        const double scaled = static_cast<double>(vector[i] * inverse) /
+                              static_cast<double>(scale);
+        const long rounded = std::lround(scaled);
+        const long clamped = std::max<long>(-32767, std::min<long>(32767, rounded));
+        out[i] = static_cast<std::int16_t>(clamped);
+        sum_sq += static_cast<double>(clamped) * static_cast<double>(clamped);
     }
 
-    const float inverse = 1.0f / static_cast<float>(std::sqrt(norm_sq));
-    for (std::size_t i = 0; i < config_.dim; ++i) {
-        out[i] *= inverse;
+    const double scale_sq =
+        static_cast<double>(scale) * static_cast<double>(scale);
+    abs2 = static_cast<float>(scale_sq * sum_sq);
+
+    if (config_.space == Space::Cosine && abs2 > 0.0f) {
+        // Reconstructed cosine vectors should have unit norm so that the
+        // dot product alone is enough for ranking.
+        scale /= std::sqrt(abs2);
+        abs2 = 1.0f;
     }
 }
 
-float Index::dot(const float* a, const float* b) const {
-    float sum = 0.0f;
+double Index::dot(const std::int16_t* a, const std::int16_t* b) const {
+    std::int64_t sum = 0;
     for (std::size_t i = 0; i < config_.dim; ++i) {
-        sum += a[i] * b[i];
+        sum += static_cast<std::int64_t>(a[i]) * static_cast<std::int64_t>(b[i]);
     }
-    return sum;
+    return static_cast<double>(sum);
 }
 
-double Index::distance(const float* a, const float* b) const {
+double Index::distance(const PreparedVector& query, NodeId node) const {
+    const std::size_t offset = static_cast<std::size_t>(node) * config_.dim;
+    const double scale =
+        static_cast<double>(query.scale) * static_cast<double>(scales_[node]);
+    const double dot_product = scale * dot(query.data, data_.data() + offset);
+
     switch (config_.space) {
         case Space::Cosine:
         case Space::InnerProduct:
-            return 1.0 - static_cast<double>(dot(a, b));
+            return 1.0 - dot_product;
         case Space::L2: {
-            float sum = 0.0f;
-            for (std::size_t i = 0; i < config_.dim; ++i) {
-                const float difference = a[i] - b[i];
-                sum += difference * difference;
-            }
-            return static_cast<double>(sum);
+            const double squared =
+                static_cast<double>(query.abs2) +
+                static_cast<double>(abs2_[node]) - 2.0 * dot_product;
+            return std::max(0.0, squared);
         }
     }
     return 0.0;
+}
+
+double Index::distance(NodeId left, NodeId right) const {
+    const PreparedVector prepared{
+        data_.data() + static_cast<std::size_t>(left) * config_.dim,
+        scales_[left],
+        abs2_[left],
+    };
+    return distance(prepared, right);
 }
 
 Index::Level Index::random_level() {
@@ -171,20 +214,18 @@ bool Index::mark_visited(NodeId node) const {
     return true;
 }
 
-Index::NodeId Index::greedy(const float* query, NodeId entry, Level layer) const {
+Index::NodeId Index::greedy(const PreparedVector& query,
+                           NodeId entry,
+                           Level layer) const {
     NodeId current = entry;
-    double current_distance =
-        distance(query, data_.data() + static_cast<std::size_t>(current) * config_.dim);
+    double current_distance = distance(query, current);
 
     while (true) {
         NodeId best = current;
         double best_distance = current_distance;
 
         for (const NodeId neighbor : links_[current][static_cast<std::size_t>(layer)]) {
-            const double neighbor_distance =
-                distance(query,
-                         data_.data() +
-                             static_cast<std::size_t>(neighbor) * config_.dim);
+            const double neighbor_distance = distance(query, neighbor);
             if (neighbor_distance < best_distance) {
                 best = neighbor;
                 best_distance = neighbor_distance;
@@ -200,7 +241,7 @@ Index::NodeId Index::greedy(const float* query, NodeId entry, Level layer) const
 }
 
 std::vector<Index::Candidate> Index::search_layer(
-    const float* query,
+    const PreparedVector& query,
     const std::vector<NodeId>& entry_points,
     std::size_t requested_ef,
     Level layer) const {
@@ -225,9 +266,7 @@ std::vector<Index::Candidate> Index::search_layer(
         if (!mark_visited(node)) {
             continue;
         }
-        const double node_distance =
-            distance(query,
-                     data_.data() + static_cast<std::size_t>(node) * config_.dim);
+        const double node_distance = distance(query, node);
         candidates.push({node_distance, node});
         results.push({node_distance, node});
     }
@@ -250,10 +289,7 @@ std::vector<Index::Candidate> Index::search_layer(
                 continue;
             }
 
-            const double neighbor_distance =
-                distance(query,
-                         data_.data() +
-                             static_cast<std::size_t>(neighbor) * config_.dim);
+            const double neighbor_distance = distance(query, neighbor);
             if (results.size() < ef ||
                 neighbor_distance < results.top().first) {
                 candidates.push({neighbor_distance, neighbor});
@@ -307,13 +343,9 @@ std::vector<Index::NodeId> Index::select_neighbors(
             continue;
         }
 
-        const float* candidate_vector =
-            data_.data() + static_cast<std::size_t>(candidate.node) * config_.dim;
         bool keep = true;
         for (const NodeId other : selected) {
-            const float* other_vector =
-                data_.data() + static_cast<std::size_t>(other) * config_.dim;
-            if (distance(candidate_vector, other_vector) < candidate.distance) {
+            if (distance(candidate.node, other) < candidate.distance) {
                 keep = false;
                 break;
             }
@@ -329,17 +361,11 @@ std::vector<Index::NodeId> Index::select_neighbors(
 std::vector<Index::NodeId> Index::prune(NodeId node,
                                         Level layer,
                                         std::size_t limit) const {
-    const float* base =
-        data_.data() + static_cast<std::size_t>(node) * config_.dim;
     std::vector<Candidate> candidates;
     candidates.reserve(links_[node][static_cast<std::size_t>(layer)].size());
 
     for (const NodeId neighbor : links_[node][static_cast<std::size_t>(layer)]) {
-        const double neighbor_distance =
-            distance(base,
-                     data_.data() +
-                         static_cast<std::size_t>(neighbor) * config_.dim);
-        candidates.push_back({neighbor_distance, neighbor});
+        candidates.push_back({distance(node, neighbor), neighbor});
     }
 
     std::sort(candidates.begin(), candidates.end(),
@@ -353,12 +379,16 @@ std::vector<Index::NodeId> Index::prune(NodeId node,
     return select_neighbors(candidates, limit);
 }
 
-void Index::insert_prepared(const float* prepared,
+void Index::insert_prepared(const std::int16_t* prepared,
+                            float scale,
+                            float abs2,
                             std::optional<std::uint64_t> label) {
     const NodeId node = static_cast<NodeId>(count_);
     const Level level = random_level();
 
     data_.insert(data_.end(), prepared, prepared + config_.dim);
+    scales_.push_back(scale);
+    abs2_.push_back(abs2);
     labels_.push_back(label.value_or(static_cast<std::uint64_t>(node)));
     levels_.push_back(level);
     links_.emplace_back(static_cast<std::size_t>(level) + 1);
@@ -370,9 +400,11 @@ void Index::insert_prepared(const float* prepared,
         return;
     }
 
+    const PreparedVector query{prepared, scale, abs2};
+
     NodeId entry = *entry_point_;
     for (Level layer = max_level_; layer > level; --layer) {
-        entry = greedy(prepared, entry, layer);
+        entry = greedy(query, entry, layer);
     }
 
     std::vector<NodeId> entry_points;
@@ -381,7 +413,7 @@ void Index::insert_prepared(const float* prepared,
     const Level top = std::min(level, max_level_);
     for (Level layer = top; layer >= 0; --layer) {
         const std::vector<Candidate> candidates =
-            search_layer(prepared, entry_points, config_.ef_construction, layer);
+            search_layer(query, entry_points, config_.ef_construction, layer);
         const std::vector<NodeId> neighbors =
             select_neighbors(candidates, config_.m);
         links_[node][static_cast<std::size_t>(layer)] = neighbors;
@@ -422,17 +454,20 @@ SearchResult Index::search(const float* query, std::size_t k) const {
         throw std::invalid_argument("query must not be null");
     }
 
-    std::vector<float> prepared(config_.dim);
-    prepare_into(query, prepared.data());
+    std::vector<std::int16_t> prepared(config_.dim);
+    float scale = 0.0f;
+    float abs2 = 0.0f;
+    quantize_into(query, prepared.data(), scale, abs2);
+    const PreparedVector prepared_query{prepared.data(), scale, abs2};
 
     NodeId entry = *entry_point_;
     for (Level layer = max_level_; layer > 0; --layer) {
-        entry = greedy(prepared.data(), entry, layer);
+        entry = greedy(prepared_query, entry, layer);
     }
 
     const std::size_t ef = std::max(config_.ef_search, k);
     const std::vector<Candidate> candidates =
-        search_layer(prepared.data(), std::vector<NodeId>{entry}, ef, 0);
+        search_layer(prepared_query, std::vector<NodeId>{entry}, ef, 0);
 
     const std::size_t take = std::min(k, candidates.size());
     SearchResult result;
@@ -461,7 +496,9 @@ std::vector<SearchResult> Index::search_batch(const float* queries,
 }
 
 std::size_t Index::index_size_bytes() const {
-    std::size_t size = data_.capacity() * sizeof(float);
+    std::size_t size = data_.capacity() * sizeof(std::int16_t);
+    size += scales_.capacity() * sizeof(float);
+    size += abs2_.capacity() * sizeof(float);
     size += labels_.capacity() * sizeof(std::uint64_t);
     size += levels_.capacity() * sizeof(Level);
     size += links_.capacity() * sizeof(std::vector<std::vector<NodeId>>);

@@ -74,15 +74,28 @@ private:
         NodeId node;
     };
 
-    void insert_prepared(const float* prepared, std::optional<std::uint64_t> label);
-    void prepare_into(const float* vector, float* out) const;
+    struct PreparedVector {
+        const std::int16_t* data = nullptr;
+        float scale = 0.0f;
+        float abs2 = 0.0f;
+    };
 
-    float dot(const float* a, const float* b) const;
-    double distance(const float* a, const float* b) const;
+    void insert_prepared(const std::int16_t* prepared,
+                         float scale,
+                         float abs2,
+                         std::optional<std::uint64_t> label);
+    void quantize_into(const float* vector,
+                       std::int16_t* out,
+                       float& scale,
+                       float& abs2) const;
+
+    double dot(const std::int16_t* a, const std::int16_t* b) const;
+    double distance(const PreparedVector& query, NodeId node) const;
+    double distance(NodeId left, NodeId right) const;
 
     Level random_level();
-    NodeId greedy(const float* query, NodeId entry, Level layer) const;
-    std::vector<Candidate> search_layer(const float* query,
+    NodeId greedy(const PreparedVector& query, NodeId entry, Level layer) const;
+    std::vector<Candidate> search_layer(const PreparedVector& query,
                                         const std::vector<NodeId>& entry_points,
                                         std::size_t ef,
                                         Level layer) const;
@@ -95,7 +108,9 @@ private:
 
     Config config_;
     std::size_t count_ = 0;
-    std::vector<float> data_;
+    std::vector<std::int16_t> data_;
+    std::vector<float> scales_;
+    std::vector<float> abs2_;
     std::vector<std::uint64_t> labels_;
     std::vector<Level> levels_;
     std::vector<std::vector<std::vector<NodeId>>> links_;
@@ -107,7 +122,7 @@ private:
     std::mt19937_64 rng_;
     mutable std::vector<std::uint32_t> visited_marks_;
     mutable std::uint32_t visit_epoch_ = 0;
-    mutable std::vector<float> prepare_buffer_;
+    std::vector<std::int16_t> quantization_buffer_;
 };
 
 }  // namespace hnsw

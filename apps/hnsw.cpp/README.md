@@ -15,7 +15,7 @@ library; Python bindings are provided with pybind11.
 - Heuristic neighbour selection with bidirectional links and pruning
 - Deterministic level assignment via a seed
 - Single-threaded, no runtime dependencies
-- `float32` vector storage and reusable visited marks for benchmark-sized indexes
+- `int16` vector storage with per-vector scaling and reusable visited marks
 
 ## Build
 
@@ -127,6 +127,8 @@ includes `hnsw.cpp`.
 - Single-threaded.
 - No deletion or update operations.
 - No persistence/serialization.
+- Vectors are stored as 16-bit integers with a per-vector scale, so distances
+  are approximate even before graph search.
 - The graph uses readable nested containers rather than a compact adjacency
   layout, and is intended as a reference implementation rather than a
   SIMD-optimized library.
