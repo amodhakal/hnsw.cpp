@@ -73,6 +73,8 @@ No changes to the runner, metrics, report, or CLI are required.
 - Exact ground truth is computed in chunked NumPy using the same metric.
 - Each configured benchmark builds its own index and sweeps its query
   parameters (`ef` for hnswlib, hnsw.cpp, and hnsw.py).
+- `ef` sweeps auto-extend until recall reaches `metrics.target_recall` or the
+  `metrics.max_ef` cap, so the sweep does not need to be specified manually.
 - Sequential mode times one query at a time and reports p50/p95/p99 latency.
 - Batch mode calls the library's batch query path for throughput.
 - Recall@k, QPS, and latency are recorded per sweep point; QPS is the median

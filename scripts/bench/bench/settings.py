@@ -18,6 +18,8 @@ class MetricsConfig:
     k: int
     reps: int
     warmup: int
+    target_recall: float | None = None
+    max_ef: int = 512
 
 
 @dataclass

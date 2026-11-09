@@ -63,6 +63,27 @@ def _sweep_points(sweep: Any) -> list[dict[str, Any]]:
     return [dict(zip(keys, combo)) for combo in itertools.product(*values)]
 
 
+def _auto_ef_points(
+    sweep: Any,
+    target_recall: float | None,
+    max_ef: int,
+) -> tuple[list[dict[str, Any]], bool]:
+    points = _sweep_points(sweep)
+    auto_ef = (
+        target_recall is not None
+        and isinstance(sweep, Mapping)
+        and set(sweep) == {"ef"}
+    )
+    if not auto_ef:
+        return points, False
+
+    filtered = [point for point in points if int(point["ef"]) <= max_ef]
+    if filtered:
+        points = filtered
+    points.sort(key=lambda point: int(point["ef"]))
+    return points, True
+
+
 def _benchmark_metric(entry: BenchmarkEntry) -> str:
     return str(entry.params.get("space", "cosine"))
 
@@ -192,7 +213,18 @@ class BenchmarkRunner:
             )
 
             try:
-                for point in _sweep_points(params.get("sweep", {})):
+                points, auto_ef = _auto_ef_points(
+                    params.get("sweep", {}),
+                    self.config.metrics.target_recall,
+                    self.config.metrics.max_ef,
+                )
+                seen_ef = {int(point["ef"]) for point in points}
+                point_index = 0
+
+                while point_index < len(points):
+                    point = points[point_index]
+                    point_index += 1
+
                     system.set_query_params(index, point)
                     self._warmup(
                         system,
@@ -244,6 +276,24 @@ class BenchmarkRunner:
                         f"qps={point_result.qps:.1f} "
                         f"p50={point_result.p50_ms:.3f}ms"
                     )
+
+                    if not auto_ef:
+                        continue
+
+                    target = self.config.metrics.target_recall
+                    if target is not None and point_result.recall >= target:
+                        break
+
+                    current_ef = int(point["ef"])
+                    next_ef = max(current_ef + 1, current_ef * 2)
+                    if next_ef > self.config.metrics.max_ef or next_ef in seen_ef:
+                        continue
+
+                    seen_ef.add(next_ef)
+                    next_point = dict(point)
+                    next_point["ef"] = next_ef
+                    points.append(next_point)
+                    points.sort(key=lambda candidate: int(candidate["ef"]))
             finally:
                 if system.close is not None:
                     system.close(index)
