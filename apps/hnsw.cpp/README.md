@@ -103,6 +103,7 @@ the benchmark.
 | `seed` | Seed for deterministic random levels |
 | `heuristic` | Use the paper's neighbour-selection heuristic |
 | `visited_mode` | `epoch` for exact per-search marks, `bloom` for a compact probabilistic set |
+| `alpha` | Pruning slack for neighbour selection; `1.0` disables slack |
 
 ## Demo
 

@@ -19,6 +19,7 @@ def _build(train: np.ndarray, params: Mapping[str, Any]) -> tuple[Any, float]:
         seed=int(params.get("seed", 100)),
         heuristic=bool(params.get("heuristic", True)),
         visited_mode=str(params.get("visited_mode", "bloom")),
+        alpha=float(params.get("alpha", 1.1)),
     )
 
     labels = np.arange(train.shape[0], dtype=np.uint64)

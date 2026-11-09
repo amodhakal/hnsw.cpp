@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <queue>
 #include <stdexcept>
 #include <string>
@@ -83,6 +85,9 @@ Index::Index(Config config) : config_(config) {
     }
     if (config_.ef_search < 1) {
         throw std::invalid_argument("ef_search must be at least 1");
+    }
+    if (config_.alpha < 1.0) {
+        throw std::invalid_argument("alpha must be at least 1.0");
     }
 
     level_mult_ = 1.0 / std::log(static_cast<double>(config_.m));
@@ -425,8 +430,11 @@ std::vector<Index::NodeId> Index::select_neighbors(
         }
 
         bool keep = true;
+        const double threshold = std::max(
+            32.0 * std::numeric_limits<double>::epsilon(),
+            candidate.distance / config_.alpha);
         for (const NodeId other : selected) {
-            if (distance(candidate.node, other) < candidate.distance) {
+            if (distance(candidate.node, other) <= threshold) {
                 keep = false;
                 break;
             }

@@ -26,6 +26,7 @@ struct Config {
     std::uint64_t seed = 100;
     bool heuristic = true;
     VisitedMode visited_mode = VisitedMode::Bloom;
+    double alpha = 1.1;
 };
 
 struct SearchResult {

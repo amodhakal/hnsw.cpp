@@ -91,7 +91,8 @@ PYBIND11_MODULE(hnsw_cpp, module) {
                          std::size_t ef_search,
                          std::uint64_t seed,
                          bool heuristic,
-                         const std::string& visited_mode) {
+                         const std::string& visited_mode,
+                         double alpha) {
                  return std::make_unique<hnsw::Index>(hnsw::Config{
                      dim,
                      hnsw::parse_space(space),
@@ -101,6 +102,7 @@ PYBIND11_MODULE(hnsw_cpp, module) {
                      seed,
                      heuristic,
                      hnsw::parse_visited_mode(visited_mode),
+                     alpha,
                  });
              }),
              py::arg("dim"),
@@ -110,7 +112,8 @@ PYBIND11_MODULE(hnsw_cpp, module) {
              py::arg("ef_search") = 50,
              py::arg("seed") = 100,
              py::arg("heuristic") = true,
-             py::arg("visited_mode") = "bloom")
+             py::arg("visited_mode") = "bloom",
+             py::arg("alpha") = 1.1)
         .def(
             "add_items",
             [](hnsw::Index& index, py::object vectors, py::object labels) {

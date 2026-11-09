@@ -255,6 +255,12 @@ void test_invalid_space_raises() {
     CHECK_THROW(hnsw::parse_visited_mode("cuckoo"), std::invalid_argument);
 }
 
+void test_invalid_alpha_raises() {
+    hnsw::Config bad_alpha{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
+                           hnsw::VisitedMode::Epoch, 0.5};
+    CHECK_THROW(hnsw::Index(bad_alpha), std::invalid_argument);
+}
+
 void test_visited_modes() {
     constexpr std::size_t dim = 8;
     constexpr std::size_t count = 100;
@@ -343,6 +349,7 @@ int main() {
     test_empty_index_raises();
     test_dimension_mismatch_raises();
     test_invalid_space_raises();
+    test_invalid_alpha_raises();
     test_visited_modes();
     test_invalid_parameters_raise();
     test_set_ef();
