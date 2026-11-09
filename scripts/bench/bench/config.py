@@ -144,6 +144,12 @@ class ConfigManager:
             )
         if metrics.k < 1:
             raise ValueError("metrics.k must be at least 1")
+        if metrics.max_ef < 1:
+            raise ValueError("metrics.max_ef must be at least 1")
+        if metrics.target_recall is not None and not (
+            0.0 <= metrics.target_recall <= 1.0
+        ):
+            raise ValueError("metrics.target_recall must be between 0 and 1")
 
         return RunConfig(
             preset=preset,

@@ -8,14 +8,22 @@ dependencies = [
     "matplotlib>=3.8",
     "hnswlib",
     "hnsw-py",
+    "hnsw-cpp",
+    # Required at runtime for scikit-build-core's editable rebuild-on-import.
+    "pybind11>=2.12",
+    "scikit-build-core>=0.10",
 ]
 
 [project.scripts]
 vecbench = "bench.cli:main"
 
+[tool.uv]
+no-build-isolation-package = ["hnsw-cpp"]
+
 [tool.uv.sources]
 hnswlib = { path = "../../vendors/hnswlib" }
 hnsw-py = { path = "../../apps/hnsw.py", editable = true }
+hnsw-cpp = { path = "../../apps/hnsw.cpp", editable = true }
 
 [build-system]
 requires = ["hatchling"]
