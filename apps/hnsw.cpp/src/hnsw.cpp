@@ -92,6 +92,15 @@ Index::Index(Config config) : config_(config) {
     if (config_.generosity < 1.0) {
         throw std::invalid_argument("generosity must be at least 1.0");
     }
+    if (config_.subdist && config_.subdist_prefix == 0) {
+        throw std::invalid_argument("subdist_prefix must be positive");
+    }
+    if (config_.subdist_prefix > config_.dim) {
+        config_.subdist_prefix = config_.dim;
+    }
+    if (config_.subdist && config_.subdist_max_stddev < 0.0) {
+        throw std::invalid_argument("subdist_max_stddev must be non-negative");
+    }
 
     level_mult_ = 1.0 / std::log(static_cast<double>(config_.m));
     rng_.seed(config_.seed);
@@ -226,6 +235,71 @@ double Index::distance(NodeId left, NodeId right) const {
         abs2_[left],
     };
     return distance(prepared, right);
+}
+
+double Index::distance_with_threshold(const PreparedVector& query,
+                                      NodeId node,
+                                      double threshold) const {
+    if (!config_.subdist) {
+        return distance(query, node);
+    }
+
+    const std::size_t dim = config_.dim;
+    const std::size_t prefix =
+        std::min(config_.subdist_prefix, dim);
+    const std::size_t offset = static_cast<std::size_t>(node) * dim;
+
+    // Squared-distance prefix over the first ``prefix`` dimensions, using the
+    // per-vector scales to reconstruct approximate float values.
+    double prefix_sum = 0.0;
+    for (std::size_t i = 0; i < prefix; ++i) {
+        const double dq =
+            static_cast<double>(query.data[i]) * static_cast<double>(query.scale) -
+            static_cast<double>(data_[offset + i]) * static_cast<double>(scales_[node]);
+        prefix_sum += dq * dq;
+    }
+
+    // Extrapolate the prefix to the full dimensionality. For cosine (unit
+    // norm) the distance is half the squared L2 distance.
+    const double extrapolated =
+        prefix_sum * (static_cast<double>(dim) / static_cast<double>(prefix));
+    const double estimated =
+        (config_.space == Space::Cosine) ? 0.5 * extrapolated : extrapolated;
+
+    // Subdist is only safe for L2 and cosine. For inner product there is no
+    // bounded relationship between prefix squared distance and 1 - dot, so
+    // always compute the full distance.
+    const bool applicable = (config_.space == Space::L2 ||
+                             config_.space == Space::Cosine);
+
+    // Auto-detection: while sampling, always return the exact distance so
+    // recall is unaffected. After enough samples, enable early rejection
+    // only when the prefix/full ratio is stable.
+    if (applicable && subdist_samples_seen < config_.subdist_samples) {
+        const double full = distance(query, node);
+        if (full > 0.0) {
+            const double ratio = estimated / full;
+            ++subdist_samples_seen;
+            const double delta = ratio - subdist_ratio_mean;
+            subdist_ratio_mean += delta / static_cast<double>(subdist_samples_seen);
+            const double delta2 = ratio - subdist_ratio_mean;
+            subdist_ratio_m2 += delta * delta2;
+        }
+        if (subdist_samples_seen >= config_.subdist_samples) {
+            const double variance =
+                subdist_samples_seen > 1
+                    ? subdist_ratio_m2 / static_cast<double>(subdist_samples_seen - 1)
+                    : 0.0;
+            const double stddev = std::sqrt(std::max(0.0, variance));
+            subdist_enabled = (stddev < config_.subdist_max_stddev);
+        }
+        return full;
+    }
+
+    if (applicable && subdist_enabled && estimated > threshold) {
+        return estimated;
+    }
+    return distance(query, node);
 }
 
 Index::Level Index::random_level() {
@@ -403,7 +477,8 @@ std::vector<Index::Candidate> Index::search_layer(
                 continue;
             }
 
-            const double neighbor_distance = distance(query, neighbor);
+            const double neighbor_distance =
+                distance_with_threshold(query, neighbor, furthest_best());
             if (results.size() < ef ||
                 neighbor_distance < furthest_best()) {
                 candidates.push({neighbor_distance, neighbor});

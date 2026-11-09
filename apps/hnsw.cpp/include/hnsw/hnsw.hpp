@@ -28,6 +28,10 @@ struct Config {
     VisitedMode visited_mode = VisitedMode::Bloom;
     double alpha = 1.1;
     double generosity = 1.1;
+    bool subdist = true;
+    std::size_t subdist_prefix = 32;
+    std::size_t subdist_samples = 10000;
+    double subdist_max_stddev = 0.1;
 };
 
 struct SearchResult {
@@ -106,6 +110,8 @@ private:
 
     double dot(const std::int16_t* a, const std::int16_t* b) const;
     double distance(const PreparedVector& query, NodeId node) const;
+    double distance_with_threshold(const PreparedVector& query, NodeId node,
+                                   double threshold) const;
     double distance(NodeId left, NodeId right) const;
 
     Level random_level();
@@ -141,6 +147,12 @@ private:
     mutable std::uint32_t visit_epoch_ = 0;
     mutable BloomFilter bloom_filter_;
     mutable double diameter_ = 0.0;
+    // Subdist auto-detection state (Welford statistics over prefix/full
+    // distance ratios), mutable because search is const.
+    mutable std::size_t subdist_samples_seen = 0;
+    mutable double subdist_ratio_mean = 0.0;
+    mutable double subdist_ratio_m2 = 0.0;
+    mutable bool subdist_enabled = false;
     std::vector<std::int16_t> quantization_buffer_;
 };
 

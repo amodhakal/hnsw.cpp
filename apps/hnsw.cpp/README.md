@@ -105,6 +105,10 @@ the benchmark.
 | `visited_mode` | `epoch` for exact per-search marks, `bloom` for a compact probabilistic set |
 | `alpha` | Pruning slack for neighbour selection; `1.0` disables slack |
 | `generosity` | Search leniency; `1.0` uses the standard early-break rule |
+| `subdist` | Use prefix-distance extrapolation to skip full distance computations |
+| `subdist_prefix` | Number of leading dimensions used for the prefix estimate |
+| `subdist_samples` | How many distances to sample before deciding whether to use subdist |
+| `subdist_max_stddev` | Max stddev of the prefix/full ratio to enable subdist |
 
 ## Demo
 
