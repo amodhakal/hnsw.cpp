@@ -10,9 +10,12 @@
 namespace hnsw {
 
 enum class Space { Cosine, L2, InnerProduct };
+enum class VisitedMode { Epoch, Bloom };
 
 Space parse_space(std::string_view name);
 const char* space_name(Space space) noexcept;
+VisitedMode parse_visited_mode(std::string_view name);
+const char* visited_mode_name(VisitedMode mode) noexcept;
 
 struct Config {
     std::size_t dim;
@@ -22,6 +25,7 @@ struct Config {
     std::size_t ef_search = 50;
     std::uint64_t seed = 100;
     bool heuristic = true;
+    VisitedMode visited_mode = VisitedMode::Bloom;
 };
 
 struct SearchResult {
@@ -80,6 +84,15 @@ private:
         float abs2 = 0.0f;
     };
 
+    struct BloomFilter {
+        void reset(std::size_t expected_visits);
+        bool insert_if_absent(NodeId value);
+
+        std::vector<std::uint64_t> bits;
+        std::size_t bit_count = 0;
+        std::size_t hash_count = 1;
+    };
+
     void insert_prepared(const std::int16_t* prepared,
                          float scale,
                          float abs2,
@@ -122,6 +135,7 @@ private:
     std::mt19937_64 rng_;
     mutable std::vector<std::uint32_t> visited_marks_;
     mutable std::uint32_t visit_epoch_ = 0;
+    mutable BloomFilter bloom_filter_;
     std::vector<std::int16_t> quantization_buffer_;
 };
 

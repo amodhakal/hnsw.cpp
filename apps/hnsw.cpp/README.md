@@ -15,7 +15,8 @@ library; Python bindings are provided with pybind11.
 - Heuristic neighbour selection with bidirectional links and pruning
 - Deterministic level assignment via a seed
 - Single-threaded, no runtime dependencies
-- `int16` vector storage with per-vector scaling and reusable visited marks
+- `int16` vector storage with per-vector scaling
+- Epoch-based or Bloom-filter visited sets during layer search
 
 ## Build
 
@@ -101,6 +102,7 @@ the benchmark.
 | `ef_search` | Default candidate-list size while querying |
 | `seed` | Seed for deterministic random levels |
 | `heuristic` | Use the paper's neighbour-selection heuristic |
+| `visited_mode` | `epoch` for exact per-search marks, `bloom` for a compact probabilistic set |
 
 ## Demo
 

@@ -11,6 +11,17 @@
 
 namespace hnsw {
 
+namespace {
+
+std::uint64_t splitmix64(std::uint64_t value) {
+    value += 0x9e3779b97f4a7c15ULL;
+    value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+    return value ^ (value >> 31);
+}
+
+}  // namespace
+
 Space parse_space(std::string_view name) {
     if (name == "cosine") {
         return Space::Cosine;
@@ -34,6 +45,28 @@ const char* space_name(Space space) noexcept {
             return "l2";
         case Space::InnerProduct:
             return "ip";
+    }
+    return "unknown";
+}
+
+VisitedMode parse_visited_mode(std::string_view name) {
+    if (name == "epoch") {
+        return VisitedMode::Epoch;
+    }
+    if (name == "bloom") {
+        return VisitedMode::Bloom;
+    }
+    throw std::invalid_argument(
+        "Unsupported visited mode '" + std::string(name) +
+        "'. Use one of: epoch, bloom");
+}
+
+const char* visited_mode_name(VisitedMode mode) noexcept {
+    switch (mode) {
+        case VisitedMode::Epoch:
+            return "epoch";
+        case VisitedMode::Bloom:
+            return "bloom";
     }
     return "unknown";
 }
@@ -214,6 +247,45 @@ bool Index::mark_visited(NodeId node) const {
     return true;
 }
 
+void Index::BloomFilter::reset(std::size_t expected_visits) {
+    const std::size_t desired =
+        std::max<std::size_t>(64, expected_visits * 10);
+    std::size_t count = 64;
+    while (count < desired && count < (std::size_t{1} << 24)) {
+        count <<= 1;
+    }
+
+    if (bit_count != count) {
+        bit_count = count;
+        bits.assign(bit_count / 64, 0);
+    } else {
+        std::fill(bits.begin(), bits.end(), 0);
+    }
+    hash_count = 7;
+}
+
+bool Index::BloomFilter::insert_if_absent(NodeId value) {
+    const std::uint64_t first = splitmix64(value);
+    const std::uint64_t second =
+        splitmix64(static_cast<std::uint64_t>(value) ^
+                   0x9e3779b97f4a7c15ULL) |
+        1ULL;
+    const std::size_t mask = bit_count - 1;
+
+    bool was_absent = false;
+    for (std::size_t hash = 0; hash < hash_count; ++hash) {
+        const std::size_t position =
+            static_cast<std::size_t>(first + hash * second) & mask;
+        std::uint64_t& word = bits[position >> 6];
+        const std::uint64_t bit = std::uint64_t{1} << (position & 63);
+        if ((word & bit) == 0) {
+            was_absent = true;
+            word |= bit;
+        }
+    }
+    return was_absent;
+}
+
 Index::NodeId Index::greedy(const PreparedVector& query,
                            NodeId entry,
                            Level layer) const {
@@ -246,7 +318,16 @@ std::vector<Index::Candidate> Index::search_layer(
     std::size_t requested_ef,
     Level layer) const {
     const std::size_t ef = std::max<std::size_t>(1, requested_ef);
-    begin_visit_epoch();
+    const bool use_bloom = config_.visited_mode == VisitedMode::Bloom;
+    if (use_bloom) {
+        bloom_filter_.reset(std::max<std::size_t>(64, ef * 32));
+    } else {
+        begin_visit_epoch();
+    }
+    const auto first_visit = [this, use_bloom](NodeId node) {
+        return use_bloom ? bloom_filter_.insert_if_absent(node)
+                         : mark_visited(node);
+    };
 
     using Scored = std::pair<double, NodeId>;
     struct ResultLess {
@@ -263,7 +344,7 @@ std::vector<Index::Candidate> Index::search_layer(
     std::priority_queue<Scored, std::vector<Scored>, ResultLess> results;
 
     for (const NodeId node : entry_points) {
-        if (!mark_visited(node)) {
+        if (!first_visit(node)) {
             continue;
         }
         const double node_distance = distance(query, node);
@@ -285,7 +366,7 @@ std::vector<Index::Candidate> Index::search_layer(
 
         for (const NodeId neighbor :
              links_[candidate.second][static_cast<std::size_t>(layer)]) {
-            if (!mark_visited(neighbor)) {
+            if (!first_visit(neighbor)) {
                 continue;
             }
 
