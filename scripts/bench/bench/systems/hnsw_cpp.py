@@ -18,6 +18,13 @@ def _build(train: np.ndarray, params: Mapping[str, Any]) -> tuple[Any, float]:
         ef_search=int(params.get("ef", 50)),
         seed=int(params.get("seed", 100)),
         heuristic=bool(params.get("heuristic", True)),
+        visited_mode=str(params.get("visited_mode", "bloom")),
+        alpha=float(params.get("alpha", 1.1)),
+        generosity=float(params.get("generosity", 1.1)),
+        subdist=bool(params.get("subdist", True)),
+        subdist_prefix=int(params.get("subdist_prefix", 32)),
+        subdist_samples=int(params.get("subdist_samples", 10000)),
+        subdist_max_stddev=float(params.get("subdist_max_stddev", 0.1)),
     )
 
     labels = np.arange(train.shape[0], dtype=np.uint64)

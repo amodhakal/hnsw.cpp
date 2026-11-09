@@ -133,14 +133,6 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
             markersize=6.0,
             label=series.label,
         )
-        for point, x, y in zip(ordered, qps, recall):
-            axis.annotate(
-                _params_label(point.params),
-                (x, y),
-                textcoords="offset points",
-                xytext=(5, 5),
-                fontsize=8,
-            )
 
     axis.set_xscale("log")
     axis.set_xlabel("Queries per second (QPS)")
@@ -148,15 +140,7 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
     axis.set_ylim(0.0, 1.05)
     axis.grid(True, which="both", alpha=0.3)
     axis.legend(title="Configured benchmarks")
-    title_parts = ["Recall vs QPS"]
-    label = result.config.output.label
-    if label and label.strip():
-        title_parts.append(" ".join(label.split()))
-    title_parts.append(result.preset)
-    axis.set_title(
-        f"{' — '.join(title_parts)} — "
-        f"{result.n:,} × {result.dim}, {result.queries:,} queries"
-    )
+    axis.set_title("Recall vs QPS")
     figure.tight_layout()
     figure.savefig(result.graph_path, dpi=160, facecolor="white")
     figure.savefig(latest_path, dpi=160, facecolor="white")

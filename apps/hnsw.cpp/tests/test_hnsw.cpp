@@ -252,6 +252,68 @@ void test_dimension_mismatch_raises() {
 
 void test_invalid_space_raises() {
     CHECK_THROW(hnsw::parse_space("manhattan"), std::invalid_argument);
+    CHECK_THROW(hnsw::parse_visited_mode("cuckoo"), std::invalid_argument);
+}
+
+void test_invalid_alpha_raises() {
+    hnsw::Config bad_alpha{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
+                           hnsw::VisitedMode::Epoch, 0.5, 1.1};
+    CHECK_THROW(hnsw::Index(bad_alpha), std::invalid_argument);
+}
+
+void test_invalid_generosity_raises() {
+    hnsw::Config bad_gen{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
+                         hnsw::VisitedMode::Epoch, 1.1, 0.5};
+    CHECK_THROW(hnsw::Index(bad_gen), std::invalid_argument);
+}
+
+void test_invalid_subdist_prefix_raises() {
+    hnsw::Config bad_prefix{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
+                            hnsw::VisitedMode::Epoch, 1.1, 1.1, true, 0,
+                            10000, 0.1};
+    CHECK_THROW(hnsw::Index(bad_prefix), std::invalid_argument);
+}
+
+void test_subdist_search_works() {
+    constexpr std::size_t dim = 16;
+    constexpr std::size_t count = 200;
+    constexpr std::size_t query_count = 10;
+    constexpr std::size_t k = 5;
+
+    const std::vector<float> vectors = make_vectors(count, dim, 21);
+    const std::vector<float> queries = make_vectors(query_count, dim, 22);
+
+    for (const bool subdist : {true, false}) {
+        hnsw::Index index(hnsw::Config{
+            dim, hnsw::Space::Cosine, 8, 100, 50, 23, true,
+            hnsw::VisitedMode::Epoch, 1.1, 1.1, subdist, 8, 1000, 0.1,
+        });
+        index.add_items(vectors.data(), count);
+        for (std::size_t query = 0; query < query_count; ++query) {
+            const std::vector<float> query_vector(
+                queries.begin() + query * dim,
+                queries.begin() + (query + 1) * dim);
+            const hnsw::SearchResult result =
+                index.search(query_vector.data(), k);
+            CHECK(result.labels.size() == k);
+        }
+    }
+}
+
+void test_visited_modes() {
+    constexpr std::size_t dim = 8;
+    constexpr std::size_t count = 100;
+    const std::vector<float> vectors = make_vectors(count, dim, 14);
+
+    for (const hnsw::VisitedMode mode :
+         {hnsw::VisitedMode::Epoch, hnsw::VisitedMode::Bloom}) {
+        hnsw::Index index(hnsw::Config{
+            dim, hnsw::Space::Cosine, 8, 100, 50, 15, true, mode,
+        });
+        index.add_items(vectors.data(), count);
+        const hnsw::SearchResult result = index.search(vectors.data(), 5);
+        CHECK(result.labels.size() == 5);
+    }
 }
 
 void test_invalid_parameters_raise() {
@@ -326,6 +388,11 @@ int main() {
     test_empty_index_raises();
     test_dimension_mismatch_raises();
     test_invalid_space_raises();
+    test_invalid_alpha_raises();
+    test_invalid_generosity_raises();
+    test_invalid_subdist_prefix_raises();
+    test_visited_modes();
+    test_subdist_search_works();
     test_invalid_parameters_raise();
     test_set_ef();
     test_index_size_is_positive();

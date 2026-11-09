@@ -44,8 +44,8 @@ Use `--label` to tag a run:
 uv run vecbench run --preset fast --label baseline
 ```
 
-The full label appears in the graph title, and a filename-safe version is
-included in the saved PNG/CSV/JSON names. `most_recent.*` keeps its fixed name.
+A filename-safe version of the label is included in the saved PNG/CSV/JSON
+names. `most_recent.*` keeps its fixed name.
 
 ## Commands
 
