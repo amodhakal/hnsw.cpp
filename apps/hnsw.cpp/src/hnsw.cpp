@@ -323,19 +323,6 @@ std::vector<Index::NodeId> Index::select_neighbors(
         }
     }
 
-    if (selected.size() < limit) {
-        for (const Candidate& candidate : candidates) {
-            if (std::find(selected.begin(), selected.end(), candidate.node) !=
-                selected.end()) {
-                continue;
-            }
-            selected.push_back(candidate.node);
-            if (selected.size() >= limit) {
-                break;
-            }
-        }
-    }
-
     return selected;
 }
 
@@ -363,15 +350,7 @@ std::vector<Index::NodeId> Index::prune(NodeId node,
                   return left.node < right.node;
               });
 
-    std::vector<NodeId> pruned;
-    pruned.reserve(std::min(limit, candidates.size()));
-    for (const Candidate& candidate : candidates) {
-        if (pruned.size() >= limit) {
-            break;
-        }
-        pruned.push_back(candidate.node);
-    }
-    return pruned;
+    return select_neighbors(candidates, limit);
 }
 
 void Index::insert_prepared(const float* prepared,
