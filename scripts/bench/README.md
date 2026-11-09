@@ -16,6 +16,10 @@ uv sync
 uv run vecbench run --preset default
 ```
 
+`hnsw.cpp` is installed as an editable C++ extension. Its Python module is
+rebuilt automatically when `vecbench` starts, so C++ source changes do not
+require a manual rebuild.
+
 The graph is written to `results/` using the local date and time, for example:
 
 ```
@@ -75,7 +79,7 @@ report, metrics, or CLI are needed.
 - Synthetic clustered Gaussian vectors are generated once per run.
 - Exact ground truth is computed in chunked numpy using the same metric.
 - Each configured benchmark builds its own index, then sweeps its query
-  parameters (`ef` for hnswlib and hnsw.py).
+  parameters (`ef` for hnswlib, hnsw.cpp, and hnsw.py).
 - Sequential mode times one query at a time and reports p50/p95/p99 latency.
 - Batch mode calls the library's batch query path for throughput.
 - QPS is the median over `reps` runs.

@@ -45,6 +45,7 @@ presets, and benchmark-system API.
 | --------- | -------- | -------------------------------------------------------- |
 | hnswlib   | Included | Baseline; HNSW with cosine, L2, and inner-product spaces |
 | hnsw.py   | Included | Pure-Python HNSW; cosine, L2, and inner-product spaces   |
+| hnsw.cpp  | Included | C++ port of hnsw.py; cosine, L2, and inner-product spaces |
 
 New algorithms are added to the same benchmark graph as they are implemented.
 
@@ -71,7 +72,7 @@ No changes to the runner, metrics, report, or CLI are required.
 - Seeded synthetic clustered Gaussian vectors are generated once per run.
 - Exact ground truth is computed in chunked NumPy using the same metric.
 - Each configured benchmark builds its own index and sweeps its query
-  parameters (`ef` for hnswlib and hnsw.py).
+  parameters (`ef` for hnswlib, hnsw.cpp, and hnsw.py).
 - Sequential mode times one query at a time and reports p50/p95/p99 latency.
 - Batch mode calls the library's batch query path for throughput.
 - Recall@k, QPS, and latency are recorded per sweep point; QPS is the median
