@@ -91,7 +91,7 @@ report, metrics, or CLI are needed.
 - Synthetic clustered Gaussian vectors are generated once per run.
 - Exact ground truth is computed in chunked numpy using the same metric.
 - Each configured benchmark builds its own index, then sweeps its query
-  parameters (`ef` for hnswlib, hnsw.cpp, and hnsw.py).
+  parameters (`ef` for hnswlib, FAISS, hnsw.cpp, and hnsw.py).
 - `ef` sweeps auto-extend by doubling until recall reaches
   `metrics.target_recall` (0.97 in both presets) or `metrics.max_ef` (512 by
   default). Seed values from the system's sweep are still used, and missing

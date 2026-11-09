@@ -9,6 +9,7 @@ dependencies = [
     "hnswlib",
     "hnsw-py",
     "hnsw-cpp",
+    "faiss-cpu",
     # Required at runtime for scikit-build-core's editable rebuild-on-import.
     "pybind11>=2.12",
     "scikit-build-core>=0.10",
@@ -24,6 +25,7 @@ no-build-isolation-package = ["hnsw-cpp"]
 hnswlib = { path = "../../vendors/hnswlib" }
 hnsw-py = { path = "../../apps/hnsw.py", editable = true }
 hnsw-cpp = { path = "../../apps/hnsw.cpp", editable = true }
+faiss-cpu = { path = "../../vendors/faiss" }
 
 [build-system]
 requires = ["hatchling"]

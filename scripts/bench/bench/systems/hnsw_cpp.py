@@ -65,7 +65,7 @@ def _index_size_bytes(index: Any) -> int | None:
 
 HNSW_CPP = BenchmarkSystem(
     name="hnsw-cpp",
-    label="hnsw.cpp (C++)",
+    label="hnsw.cpp",
     build=_build,
     set_query_params=_set_query_params,
     search_batch=_search_batch,

@@ -37,6 +37,7 @@ presets, and benchmark-system API.
 | ------------------------- | ------------------------------------------ |
 | `scripts/bench/`          | Python benchmark harness (uv project)      |
 | `vendors/hnswlib/`        | Baseline HNSW implementation               |
+| `vendors/faiss/`          | FAISS (HNSW) control implementation        |
 | `vendors/ann-benchmarks/` | Reference dataset and algorithm collection |
 | `apps/`                   | In-repo algorithm implementations          |
 
@@ -45,6 +46,7 @@ presets, and benchmark-system API.
 | Algorithm | Status   | Notes                                                    |
 | --------- | -------- | -------------------------------------------------------- |
 | hnswlib   | Included | Baseline; HNSW with cosine, L2, and inner-product spaces |
+| faiss     | Included | Control; FAISS HNSW (`IndexHNSWFlat`)                    |
 | hnsw.py   | Included | Pure-Python HNSW; cosine, L2, and inner-product spaces   |
 | hnsw.cpp  | Included | C++ port of hnsw.py; cosine, L2, and inner-product spaces |
 

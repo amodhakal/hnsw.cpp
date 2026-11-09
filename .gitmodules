@@ -4,6 +4,6 @@
 [submodule "vendors/hnswlib"]
 	path = vendors/hnswlib
 	url = git@github.com:nmslib/hnswlib.git
-[submodule "vendors/glass"]
-	path = vendors/glass
-	url = git@github.com:hhy3/pyglass.git
+[submodule "vendors/faiss"]
+	path = vendors/faiss
+	url = org-16943930@github.com:facebookresearch/faiss.git
