@@ -104,6 +104,7 @@ the benchmark.
 | `heuristic` | Use the paper's neighbour-selection heuristic |
 | `visited_mode` | `epoch` for exact per-search marks, `bloom` for a compact probabilistic set |
 | `alpha` | Pruning slack for neighbour selection; `1.0` disables slack |
+| `generosity` | Search leniency; `1.0` uses the standard early-break rule |
 
 ## Demo
 

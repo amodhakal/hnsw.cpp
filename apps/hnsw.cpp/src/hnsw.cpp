@@ -89,6 +89,9 @@ Index::Index(Config config) : config_(config) {
     if (config_.alpha < 1.0) {
         throw std::invalid_argument("alpha must be at least 1.0");
     }
+    if (config_.generosity < 1.0) {
+        throw std::invalid_argument("generosity must be at least 1.0");
+    }
 
     level_mult_ = 1.0 / std::log(static_cast<double>(config_.m));
     rng_.seed(config_.seed);
@@ -291,6 +294,16 @@ bool Index::BloomFilter::insert_if_absent(NodeId value) {
     return was_absent;
 }
 
+double Index::generous_furthest(double worst, double max_distance,
+                                double generosity) const {
+    if (generosity <= 1.0 || max_distance <= worst) {
+        return worst;
+    }
+    const double x = generosity - 1.0;
+    const double fraction = x / (1.0 + x);
+    return worst + (max_distance - worst) * fraction;
+}
+
 Index::NodeId Index::greedy(const PreparedVector& query,
                            NodeId entry,
                            Level layer) const {
@@ -334,6 +347,12 @@ std::vector<Index::Candidate> Index::search_layer(
                          : mark_visited(node);
     };
 
+    // Furthest distance seen within this search, starting from the entry
+    // points. The persistent ``diameter_`` is only updated afterward for
+    // diagnostics; it must not seed the current search or a search that
+    // explored widely would raise the threshold for all later searches.
+    double max_distance = 0.0;
+
     using Scored = std::pair<double, NodeId>;
     struct ResultLess {
         bool operator()(const Scored& left, const Scored& right) const {
@@ -353,6 +372,7 @@ std::vector<Index::Candidate> Index::search_layer(
             continue;
         }
         const double node_distance = distance(query, node);
+        max_distance = std::max(max_distance, node_distance);
         candidates.push({node_distance, node});
         results.push({node_distance, node});
     }
@@ -361,11 +381,19 @@ std::vector<Index::Candidate> Index::search_layer(
         results.pop();
     }
 
+    const auto furthest_best = [&]() {
+        if (results.empty()) {
+            return std::numeric_limits<double>::max();
+        }
+        return generous_furthest(results.top().first, max_distance,
+                                 config_.generosity);
+    };
+
     while (!candidates.empty()) {
         const Scored candidate = candidates.top();
         candidates.pop();
 
-        if (results.size() >= ef && candidate.first > results.top().first) {
+        if (results.size() >= ef && candidate.first > furthest_best()) {
             break;
         }
 
@@ -377,7 +405,7 @@ std::vector<Index::Candidate> Index::search_layer(
 
             const double neighbor_distance = distance(query, neighbor);
             if (results.size() < ef ||
-                neighbor_distance < results.top().first) {
+                neighbor_distance < furthest_best()) {
                 candidates.push({neighbor_distance, neighbor});
                 results.push({neighbor_distance, neighbor});
                 if (results.size() > ef) {
@@ -386,6 +414,8 @@ std::vector<Index::Candidate> Index::search_layer(
             }
         }
     }
+
+    diameter_ = std::max(diameter_, max_distance);
 
     std::vector<Candidate> ordered;
     ordered.reserve(results.size());

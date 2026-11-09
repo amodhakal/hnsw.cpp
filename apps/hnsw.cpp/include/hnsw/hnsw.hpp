@@ -27,6 +27,7 @@ struct Config {
     bool heuristic = true;
     VisitedMode visited_mode = VisitedMode::Bloom;
     double alpha = 1.1;
+    double generosity = 1.1;
 };
 
 struct SearchResult {
@@ -113,6 +114,8 @@ private:
                                         const std::vector<NodeId>& entry_points,
                                         std::size_t ef,
                                         Level layer) const;
+    double generous_furthest(double worst, double max_distance,
+                             double generosity) const;
     std::vector<NodeId> select_neighbors(const std::vector<Candidate>& candidates,
                                          std::size_t limit) const;
     std::vector<NodeId> prune(NodeId node, Level layer, std::size_t limit) const;
@@ -137,6 +140,7 @@ private:
     mutable std::vector<std::uint32_t> visited_marks_;
     mutable std::uint32_t visit_epoch_ = 0;
     mutable BloomFilter bloom_filter_;
+    mutable double diameter_ = 0.0;
     std::vector<std::int16_t> quantization_buffer_;
 };
 

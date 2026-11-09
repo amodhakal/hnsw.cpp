@@ -257,8 +257,14 @@ void test_invalid_space_raises() {
 
 void test_invalid_alpha_raises() {
     hnsw::Config bad_alpha{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
-                           hnsw::VisitedMode::Epoch, 0.5};
+                           hnsw::VisitedMode::Epoch, 0.5, 1.1};
     CHECK_THROW(hnsw::Index(bad_alpha), std::invalid_argument);
+}
+
+void test_invalid_generosity_raises() {
+    hnsw::Config bad_gen{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
+                         hnsw::VisitedMode::Epoch, 1.1, 0.5};
+    CHECK_THROW(hnsw::Index(bad_gen), std::invalid_argument);
 }
 
 void test_visited_modes() {
@@ -350,6 +356,7 @@ int main() {
     test_dimension_mismatch_raises();
     test_invalid_space_raises();
     test_invalid_alpha_raises();
+    test_invalid_generosity_raises();
     test_visited_modes();
     test_invalid_parameters_raise();
     test_set_ef();
