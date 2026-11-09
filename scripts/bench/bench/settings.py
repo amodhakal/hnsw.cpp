@@ -26,6 +26,7 @@ class MetricsConfig:
 class OutputConfig:
     dir: str
     format: str
+    label: str | None = None
 
 
 @dataclass

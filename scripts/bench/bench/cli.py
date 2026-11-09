@@ -34,6 +34,8 @@ def _cmd_run(args: argparse.Namespace) -> None:
         overrides["output.format"] = args.format
     if args.output_dir is not None:
         overrides["output.dir"] = args.output_dir
+    if args.label is not None:
+        overrides["output.label"] = args.label
     if args.n is not None:
         overrides["dataset.n"] = args.n
     if args.dim is not None:
@@ -96,6 +98,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_parser.add_argument("--format", choices=["png", "jpg", "jpeg"])
     run_parser.add_argument("--output-dir")
+    run_parser.add_argument(
+        "--label",
+        help="Custom label for the graph title and output filenames",
+    )
     run_parser.add_argument("--n", type=int)
     run_parser.add_argument("--dim", type=int)
     run_parser.add_argument("--queries", type=int)

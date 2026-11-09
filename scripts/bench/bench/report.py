@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 
@@ -17,6 +18,13 @@ def _unique_stem(directory: Path, timestamp: str) -> str:
     return stem
 
 
+def _slugify_label(label: str | None) -> str:
+    if not label:
+        return ""
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", label).strip("-._")
+    return slug[:60].rstrip("-._")
+
+
 def _extension(fmt: str) -> str:
     return "jpg" if fmt in {"jpg", "jpeg"} else "png"
 
@@ -26,7 +34,9 @@ def write_outputs(result: RunResult) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = result.timestamp.strftime("%Y-%m-%d_%H-%M-%S")
-    stem = _unique_stem(output_dir, timestamp)
+    slug = _slugify_label(result.config.output.label)
+    base_stem = f"{timestamp}_{slug}" if slug else timestamp
+    stem = _unique_stem(output_dir, base_stem)
     extension = _extension(result.config.output.format)
 
     result.graph_path = output_dir / f"{stem}.{extension}"
@@ -138,8 +148,13 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
     axis.set_ylim(0.0, 1.05)
     axis.grid(True, which="both", alpha=0.3)
     axis.legend(title="Configured benchmarks")
+    title_parts = ["Recall vs QPS"]
+    label = result.config.output.label
+    if label and label.strip():
+        title_parts.append(" ".join(label.split()))
+    title_parts.append(result.preset)
     axis.set_title(
-        f"Recall vs QPS — {result.preset} — "
+        f"{' — '.join(title_parts)} — "
         f"{result.n:,} × {result.dim}, {result.queries:,} queries"
     )
     figure.tight_layout()

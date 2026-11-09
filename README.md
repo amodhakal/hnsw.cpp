@@ -25,6 +25,7 @@ uv run vecbench show-config --preset default
 uv run vecbench run --preset fast
 uv run vecbench run --preset default --n 50000 --queries 500
 uv run vecbench run --preset default --ef 10,20,40,80
+uv run vecbench run --preset fast --label baseline
 ```
 
 See [`scripts/bench/README.md`](scripts/bench/README.md) for the full CLI,

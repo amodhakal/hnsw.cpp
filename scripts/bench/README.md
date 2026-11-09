@@ -38,6 +38,15 @@ Use `--format jpg` for a JPEG:
 uv run vecbench run --preset default --format jpg
 ```
 
+Use `--label` to tag a run:
+
+```bash
+uv run vecbench run --preset fast --label baseline
+```
+
+The full label appears in the graph title, and a filename-safe version is
+included in the saved PNG/CSV/JSON names. `most_recent.*` keeps its fixed name.
+
 ## Commands
 
 ```bash
@@ -46,6 +55,7 @@ uv run vecbench show-config --preset default
 uv run vecbench run --preset fast
 uv run vecbench run --preset default --n 50000 --queries 500
 uv run vecbench run --preset default --ef 10,20,40,80
+uv run vecbench run --preset fast --label baseline
 uv run vecbench run --preset default --set dataset.n=20000
 uv run vecbench run --preset fast --set metrics.max_ef=1024
 uv run vecbench run --preset fast --set metrics.target_recall=None
