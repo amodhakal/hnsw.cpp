@@ -17,21 +17,24 @@ const char* space_name(Space space) noexcept;
 VisitedMode parse_visited_mode(std::string_view name);
 const char* visited_mode_name(VisitedMode mode) noexcept;
 
+/// Every field is required. Tuning constants are supplied by the caller
+/// (the benchmark presets for Python users) rather than defaulted here, so
+/// there is a single authoritative source for them.
 struct Config {
     std::size_t dim;
-    Space space = Space::Cosine;
-    std::size_t m = 16;
-    std::size_t ef_construction = 200;
-    std::size_t ef_search = 50;
-    std::uint64_t seed = 100;
-    bool heuristic = true;
-    VisitedMode visited_mode = VisitedMode::Bloom;
-    double alpha = 1.1;
-    double generosity = 1.1;
-    bool subdist = true;
-    std::size_t subdist_prefix = 32;
-    std::size_t subdist_samples = 10000;
-    double subdist_max_stddev = 0.1;
+    Space space;
+    std::size_t m;
+    std::size_t ef_construction;
+    std::size_t ef_search;
+    std::uint64_t seed;
+    bool heuristic;
+    VisitedMode visited_mode;
+    double alpha;
+    double generosity;
+    bool subdist;
+    std::size_t subdist_prefix;
+    std::size_t subdist_samples;
+    double subdist_max_stddev;
 };
 
 struct SearchResult {

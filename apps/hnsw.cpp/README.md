@@ -48,13 +48,20 @@ ctest --test-dir apps/hnsw.cpp/build --output-on-failure
 #include "hnsw/hnsw.hpp"
 
 hnsw::Index index(hnsw::Config{
-    128,
-    hnsw::Space::Cosine,
-    16,
-    100,
-    50,
-    42,
-    true,
+    128,                      // dim
+    hnsw::Space::Cosine,      // space
+    16,                       // m
+    100,                      // ef_construction
+    50,                       // ef_search
+    42,                       // seed
+    true,                     // heuristic
+    hnsw::VisitedMode::Bloom, // visited_mode
+    1.0,                      // alpha
+    1.0,                      // generosity
+    true,                     // subdist
+    32,                       // subdist_prefix
+    10000,                    // subdist_samples
+    0.1,                      // subdist_max_stddev
 });
 
 index.add_items(vectors.data(), count);
@@ -78,6 +85,14 @@ index = HNSWIndex(
     ef_construction=100,
     ef_search=50,
     seed=42,
+    heuristic=True,
+    visited_mode="bloom",
+    alpha=1.0,
+    generosity=1.0,
+    subdist=True,
+    subdist_prefix=32,
+    subdist_samples=10000,
+    subdist_max_stddev=0.1,
 )
 
 index.add_items(vectors, labels=None)
@@ -92,6 +107,10 @@ batch_labels, batch_distances = index.knn_query(queries, k=10)
 the benchmark.
 
 ## Parameters
+
+Every field is required: the library does not apply hidden defaults, so the
+caller (for the benchmark, the preset in `scripts/bench/bench/presets.py`) is
+the single source of truth.
 
 | Parameter | Meaning |
 | --- | --- |

@@ -116,19 +116,19 @@ PYBIND11_MODULE(hnsw_cpp, module) {
                  });
              }),
              py::arg("dim"),
-             py::arg("space") = "cosine",
-             py::arg("m") = 16,
-             py::arg("ef_construction") = 200,
-             py::arg("ef_search") = 50,
-             py::arg("seed") = 100,
-             py::arg("heuristic") = true,
-             py::arg("visited_mode") = "bloom",
-             py::arg("alpha") = 1.1,
-             py::arg("generosity") = 1.1,
-             py::arg("subdist") = true,
-             py::arg("subdist_prefix") = 32,
-             py::arg("subdist_samples") = 10000,
-             py::arg("subdist_max_stddev") = 0.1)
+             py::arg("space"),
+             py::arg("m"),
+             py::arg("ef_construction"),
+             py::arg("ef_search"),
+             py::arg("seed"),
+             py::arg("heuristic"),
+             py::arg("visited_mode"),
+             py::arg("alpha"),
+             py::arg("generosity"),
+             py::arg("subdist"),
+             py::arg("subdist_prefix"),
+             py::arg("subdist_samples"),
+             py::arg("subdist_max_stddev"))
         .def(
             "add_items",
             [](hnsw::Index& index, py::object vectors, py::object labels) {

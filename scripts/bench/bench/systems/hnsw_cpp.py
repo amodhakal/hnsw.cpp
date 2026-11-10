@@ -8,23 +8,49 @@ import numpy as np
 
 from ..interface import BenchmarkSystem
 
+_REQUIRED_PARAMS = (
+    "space",
+    "m",
+    "ef_construction",
+    "ef_search",
+    "seed",
+    "heuristic",
+    "visited_mode",
+    "alpha",
+    "generosity",
+    "subdist",
+    "subdist_prefix",
+    "subdist_samples",
+    "subdist_max_stddev",
+)
+
 
 def _build(train: np.ndarray, params: Mapping[str, Any]) -> tuple[Any, float]:
+    # Every tuning constant is required. They live in the benchmark presets so
+    # the preset is the single source of truth; a missing key fails loudly
+    # instead of silently falling back to a library default.
+    missing = [key for key in _REQUIRED_PARAMS if key not in params]
+    if missing:
+        raise KeyError(
+            "hnsw-cpp preset is missing required constants: "
+            + ", ".join(missing)
+        )
+
     index = hnsw_cpp.HNSWIndex(
         dim=int(train.shape[1]),
-        space=str(params.get("space", "cosine")),
-        m=int(params.get("m", 16)),
-        ef_construction=int(params.get("ef_construction", 100)),
-        ef_search=int(params.get("ef", 50)),
-        seed=int(params.get("seed", 100)),
-        heuristic=bool(params.get("heuristic", True)),
-        visited_mode=str(params.get("visited_mode", "bloom")),
-        alpha=float(params.get("alpha", 1.1)),
-        generosity=float(params.get("generosity", 1.1)),
-        subdist=bool(params.get("subdist", True)),
-        subdist_prefix=int(params.get("subdist_prefix", 32)),
-        subdist_samples=int(params.get("subdist_samples", 10000)),
-        subdist_max_stddev=float(params.get("subdist_max_stddev", 0.1)),
+        space=str(params["space"]),
+        m=int(params["m"]),
+        ef_construction=int(params["ef_construction"]),
+        ef_search=int(params["ef_search"]),
+        seed=int(params["seed"]),
+        heuristic=bool(params["heuristic"]),
+        visited_mode=str(params["visited_mode"]),
+        alpha=float(params["alpha"]),
+        generosity=float(params["generosity"]),
+        subdist=bool(params["subdist"]),
+        subdist_prefix=int(params["subdist_prefix"]),
+        subdist_samples=int(params["subdist_samples"]),
+        subdist_max_stddev=float(params["subdist_max_stddev"]),
     )
 
     labels = np.arange(train.shape[0], dtype=np.uint64)
@@ -71,13 +97,10 @@ HNSW_CPP = BenchmarkSystem(
     search_batch=_search_batch,
     search_one=_search_one,
     index_size_bytes=_index_size_bytes,
+    # Harness-only defaults. Library tuning constants are supplied by presets.
     default_params={
-        "space": "cosine",
-        "m": 16,
-        "ef_construction": 100,
-        "seed": 100,
         "query_mode": "sequential",
         "query_threads": 1,
-        "sweep": {"ef": [10, 40, 160]},
+        "sweep": {"ef": [10, 20, 40, 80, 160, 320]},
     },
 )

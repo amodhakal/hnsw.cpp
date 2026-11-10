@@ -128,6 +128,32 @@ std::vector<std::size_t> brute_force(const std::vector<float>& vectors,
     return result;
 }
 
+hnsw::Config make_config(std::size_t dim,
+                         hnsw::Space space,
+                         std::size_t m,
+                         std::size_t ef_construction,
+                         std::size_t ef_search,
+                         std::uint64_t seed,
+                         hnsw::VisitedMode visited_mode =
+                             hnsw::VisitedMode::Bloom) {
+    return hnsw::Config{
+        dim,
+        space,
+        m,
+        ef_construction,
+        ef_search,
+        seed,
+        true,
+        visited_mode,
+        1.1,
+        1.1,
+        true,
+        32,
+        10000,
+        0.1,
+    };
+}
+
 void test_recall_against_brute_force() {
     constexpr std::size_t dim = 16;
     constexpr std::size_t count = 300;
@@ -139,9 +165,7 @@ void test_recall_against_brute_force() {
 
     for (const hnsw::Space space :
          {hnsw::Space::Cosine, hnsw::Space::L2, hnsw::Space::InnerProduct}) {
-        hnsw::Index index(hnsw::Config{
-            dim, space, 8, 100, 100, 42, true,
-        });
+        hnsw::Index index(make_config(dim, space, 8, 100, 100, 42));
         index.add_items(vectors.data(), count);
 
         std::size_t hits = 0;
@@ -176,11 +200,9 @@ void test_deterministic_with_same_seed() {
     const std::vector<float> vectors = make_vectors(count, dim, 1);
     const std::vector<float> queries = make_vectors(query_count, dim, 2);
 
-    hnsw::Index first(hnsw::Config{dim, hnsw::Space::Cosine, 8, 200, 50, 123,
-                                   true});
+    hnsw::Index first(make_config(dim, hnsw::Space::Cosine, 8, 200, 50, 123));
     first.add_items(vectors.data(), count);
-    hnsw::Index second(hnsw::Config{dim, hnsw::Space::Cosine, 8, 200, 50, 123,
-                                    true});
+    hnsw::Index second(make_config(dim, hnsw::Space::Cosine, 8, 200, 50, 123));
     second.add_items(vectors.data(), count);
 
     for (std::size_t query = 0; query < query_count; ++query) {
@@ -207,8 +229,7 @@ void test_custom_labels_round_trip() {
         labels.push_back(1000 + i);
     }
 
-    hnsw::Index index(hnsw::Config{dim, hnsw::Space::Cosine, 4, 200, 50, 5,
-                                   true});
+    hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 4, 200, 50, 5));
     index.add_items(vectors.data(), count, labels.data());
 
     const hnsw::SearchResult result =
@@ -226,8 +247,7 @@ void test_k_larger_than_index() {
     constexpr std::size_t count = 5;
 
     const std::vector<float> vectors = make_vectors(count, dim, 4);
-    hnsw::Index index(hnsw::Config{dim, hnsw::Space::Cosine, 4, 200, 50, 5,
-                                   true});
+    hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 4, 200, 50, 5));
     index.add_items(vectors.data(), count);
 
     const hnsw::SearchResult result =
@@ -237,15 +257,13 @@ void test_k_larger_than_index() {
 }
 
 void test_empty_index_raises() {
-    hnsw::Index index(hnsw::Config{4, hnsw::Space::Cosine, 16, 200, 50, 100,
-                                   true});
+    hnsw::Index index(make_config(4, hnsw::Space::Cosine, 16, 200, 50, 100));
     const std::vector<float> query(4, 0.0f);
     CHECK_THROW(index.search(query.data(), 10), std::runtime_error);
 }
 
 void test_dimension_mismatch_raises() {
-    hnsw::Index index(hnsw::Config{4, hnsw::Space::Cosine, 16, 200, 50, 100,
-                                   true});
+    hnsw::Index index(make_config(4, hnsw::Space::Cosine, 16, 200, 50, 100));
     const std::vector<float> vector(3, 0.0f);
     CHECK_THROW(index.add_item(vector), std::invalid_argument);
 }
@@ -257,13 +275,15 @@ void test_invalid_space_raises() {
 
 void test_invalid_alpha_raises() {
     hnsw::Config bad_alpha{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
-                           hnsw::VisitedMode::Epoch, 0.5, 1.1};
+                           hnsw::VisitedMode::Epoch, 0.5, 1.1, true, 32,
+                           10000, 0.1};
     CHECK_THROW(hnsw::Index(bad_alpha), std::invalid_argument);
 }
 
 void test_invalid_generosity_raises() {
     hnsw::Config bad_gen{4, hnsw::Space::Cosine, 16, 200, 50, 100, true,
-                         hnsw::VisitedMode::Epoch, 1.1, 0.5};
+                         hnsw::VisitedMode::Epoch, 1.1, 0.5, true, 32,
+                         10000, 0.1};
     CHECK_THROW(hnsw::Index(bad_gen), std::invalid_argument);
 }
 
@@ -307,9 +327,8 @@ void test_visited_modes() {
 
     for (const hnsw::VisitedMode mode :
          {hnsw::VisitedMode::Epoch, hnsw::VisitedMode::Bloom}) {
-        hnsw::Index index(hnsw::Config{
-            dim, hnsw::Space::Cosine, 8, 100, 50, 15, true, mode,
-        });
+        hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 8, 100, 50, 15,
+                                      mode));
         index.add_items(vectors.data(), count);
         const hnsw::SearchResult result = index.search(vectors.data(), 5);
         CHECK(result.labels.size() == 5);
@@ -317,10 +336,14 @@ void test_visited_modes() {
 }
 
 void test_invalid_parameters_raise() {
-    hnsw::Config bad_m{4, hnsw::Space::Cosine, 1, 200, 50, 100, true};
+    hnsw::Config bad_m{4, hnsw::Space::Cosine, 1, 200, 50, 100, true,
+                       hnsw::VisitedMode::Bloom, 1.0, 1.0, true, 32, 10000,
+                       0.1};
     CHECK_THROW(hnsw::Index(bad_m), std::invalid_argument);
 
-    hnsw::Config bad_ef{4, hnsw::Space::Cosine, 16, 0, 50, 100, true};
+    hnsw::Config bad_ef{4, hnsw::Space::Cosine, 16, 0, 50, 100, true,
+                        hnsw::VisitedMode::Bloom, 1.0, 1.0, true, 32, 10000,
+                        0.1};
     CHECK_THROW(hnsw::Index(bad_ef), std::invalid_argument);
 }
 
@@ -329,8 +352,7 @@ void test_set_ef() {
     constexpr std::size_t count = 50;
 
     const std::vector<float> vectors = make_vectors(count, dim, 6);
-    hnsw::Index index(hnsw::Config{dim, hnsw::Space::Cosine, 4, 200, 50, 7,
-                                   true});
+    hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 4, 200, 50, 7));
     index.add_items(vectors.data(), count);
 
     index.set_ef(80);
@@ -347,8 +369,7 @@ void test_index_size_is_positive() {
     constexpr std::size_t count = 20;
 
     const std::vector<float> vectors = make_vectors(count, dim, 9);
-    hnsw::Index index(hnsw::Config{dim, hnsw::Space::Cosine, 4, 200, 50, 10,
-                                   true});
+    hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 4, 200, 50, 10));
     index.add_items(vectors.data(), count);
     CHECK(index.index_size_bytes() > 0);
 }
@@ -362,8 +383,7 @@ void test_batch_matches_single() {
     const std::vector<float> vectors = make_vectors(count, dim, 11);
     const std::vector<float> queries = make_vectors(query_count, dim, 12);
 
-    hnsw::Index index(hnsw::Config{dim, hnsw::Space::Cosine, 8, 200, 50, 13,
-                                   true});
+    hnsw::Index index(make_config(dim, hnsw::Space::Cosine, 8, 200, 50, 13));
     index.add_items(vectors.data(), count);
 
     const std::vector<hnsw::SearchResult> batch =

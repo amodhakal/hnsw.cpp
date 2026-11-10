@@ -17,7 +17,20 @@ int main() {
     }
 
     hnsw::Index index(hnsw::Config{
-        dim, hnsw::Space::Cosine, 8, 100, 50, 1, true,
+        dim,
+        hnsw::Space::Cosine,
+        8,
+        100,
+        50,
+        1,
+        true,
+        hnsw::VisitedMode::Bloom,
+        1.0,
+        1.0,
+        true,
+        32,
+        10000,
+        0.1,
     });
     index.add_items(vectors.data(), count);
 
