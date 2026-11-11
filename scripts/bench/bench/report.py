@@ -3,9 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import math
-import platform
 import re
-import subprocess
 from dataclasses import asdict
 from pathlib import Path
 
@@ -123,25 +121,6 @@ def _format_count(value: int) -> str:
     return str(value)
 
 
-def _detect_hardware() -> str:
-    if platform.system() == "Darwin":
-        try:
-            completed = subprocess.run(
-                ["sysctl", "-n", "machdep.cpu.brand_string"],
-                capture_output=True,
-                check=False,
-                text=True,
-                timeout=2,
-            )
-        except (OSError, subprocess.SubprocessError):
-            pass
-        else:
-            name = completed.stdout.strip()
-            if name:
-                return name
-    return platform.processor() or platform.machine() or "unknown"
-
-
 def _recall_bounds(result: RunResult) -> tuple[float, float]:
     recalls = [
         point.recall
@@ -177,7 +156,6 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
         )
 
     k = result.config.metrics.k
-    hardware = result.config.output.hardware or _detect_hardware()
     axis.set_xscale("log")
     axis.set_xlabel("Queries per second (QPS)", fontsize=14)
     axis.set_ylabel(f"Recall@{k}", fontsize=14)
@@ -196,7 +174,7 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
         color="0.35",
     )
     axis.set_title(
-        f"{_format_count(result.n)} vectors, {result.dim}-dim, {hardware}, k={k}",
+        f"{_format_count(result.n)} vectors, {result.dim}-dim, k={k}",
         fontsize=17,
         fontweight="bold",
         pad=14,
