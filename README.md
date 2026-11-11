@@ -1,6 +1,6 @@
 # HNSW.cpp
 
-This is a vector search algorithm for ann search with a local benchmark
+HNSW.cpp is a collection of vector search algorithms with a local benchmark
 harness for comparing them on the same data, metric, and methodology.
 **hnswlib** is included as the baseline implementation.
 

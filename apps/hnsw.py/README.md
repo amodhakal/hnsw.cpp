@@ -67,7 +67,7 @@ uv run hnsw-py
 
 ## Benchmark
 
-The library is registered with the VecSearch benchmark harness as `hnsw-py`.
+The library is registered with the HNSW.cpp benchmark harness as `hnsw-py`.
 From the repository root:
 
 ```bash

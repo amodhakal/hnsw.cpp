@@ -27,6 +27,7 @@ class OutputConfig:
     dir: str
     format: str
     label: str | None = None
+    hardware: str | None = None
 
 
 @dataclass

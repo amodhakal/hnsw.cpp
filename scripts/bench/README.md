@@ -1,7 +1,7 @@
 # scripts/bench
 
 Local **recall vs QPS** benchmarks for vector search libraries. See the
-[VecSearch README](../../README.md) for the project overview and the latest
+[HNSW.cpp README](../../README.md) for the project overview and the latest
 graph.
 
 A `BenchmarkSystem` value describes a library's operations, an instance

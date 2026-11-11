@@ -137,7 +137,7 @@ the single source of truth.
 
 ## Benchmark
 
-The library is registered with the VecSearch benchmark harness as `hnsw-cpp`.
+The library is registered with the HNSW.cpp benchmark harness as `hnsw-cpp`.
 From the repository root:
 
 ```bash

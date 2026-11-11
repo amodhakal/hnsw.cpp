@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import csv
 import json
+import math
+import platform
 import re
+import subprocess
 from dataclasses import asdict
 from pathlib import Path
 
@@ -112,6 +115,45 @@ def _write_json(result: RunResult) -> None:
         json.dump(payload, handle, indent=2)
 
 
+def _format_count(value: int) -> str:
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:g}M"
+    if value >= 1_000:
+        return f"{value / 1_000:g}k"
+    return str(value)
+
+
+def _detect_hardware() -> str:
+    if platform.system() == "Darwin":
+        try:
+            completed = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True,
+                check=False,
+                text=True,
+                timeout=2,
+            )
+        except (OSError, subprocess.SubprocessError):
+            pass
+        else:
+            name = completed.stdout.strip()
+            if name:
+                return name
+    return platform.processor() or platform.machine() or "unknown"
+
+
+def _recall_bounds(result: RunResult) -> tuple[float, float]:
+    recalls = [
+        point.recall
+        for series in result.series
+        for point in series.points
+    ]
+    if not recalls:
+        return 0.0, 1.0
+    lower = min(0.6, math.floor(min(recalls) * 10) / 10)
+    return max(0.0, lower), 1.0
+
+
 def _write_graph(result: RunResult, latest_path: Path) -> None:
     import matplotlib
 
@@ -119,7 +161,7 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
     import matplotlib.pyplot as plt
 
     assert result.graph_path is not None
-    figure, axis = plt.subplots(figsize=(9.0, 6.0))
+    figure, axis = plt.subplots(figsize=(10.0, 6.5))
 
     for series in result.series:
         ordered = sorted(series.points, key=lambda point: point.qps)
@@ -129,18 +171,36 @@ def _write_graph(result: RunResult, latest_path: Path) -> None:
             qps,
             recall,
             marker="o",
-            linewidth=2.0,
-            markersize=6.0,
+            linewidth=2.2,
+            markersize=7.0,
             label=series.label,
         )
 
+    k = result.config.metrics.k
+    hardware = result.config.output.hardware or _detect_hardware()
     axis.set_xscale("log")
-    axis.set_xlabel("Queries per second (QPS)")
-    axis.set_ylabel(f"Recall@{result.config.metrics.k}")
-    axis.set_ylim(0.0, 1.05)
+    axis.set_xlabel("Queries per second (QPS)", fontsize=14)
+    axis.set_ylabel(f"Recall@{k}", fontsize=14)
+    axis.set_ylim(*_recall_bounds(result))
+    axis.tick_params(axis="both", which="major", labelsize=12)
+    axis.tick_params(axis="both", which="minor", labelsize=11)
     axis.grid(True, which="both", alpha=0.3)
-    axis.legend(title="Configured benchmarks")
-    axis.set_title("Recall vs QPS")
+    axis.legend(fontsize=12, framealpha=0.9, loc="lower left")
+    axis.annotate(
+        "faster →",
+        xy=(0.98, 0.02),
+        xycoords="axes fraction",
+        ha="right",
+        va="bottom",
+        fontsize=13,
+        color="0.35",
+    )
+    axis.set_title(
+        f"{_format_count(result.n)} vectors, {result.dim}-dim, {hardware}, k={k}",
+        fontsize=17,
+        fontweight="bold",
+        pad=14,
+    )
     figure.tight_layout()
     figure.savefig(result.graph_path, dpi=160, facecolor="white")
     figure.savefig(latest_path, dpi=160, facecolor="white")

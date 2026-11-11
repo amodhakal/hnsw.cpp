@@ -1,5 +1,5 @@
 [project]
-name = "vecsearch-bench"
+name = "hnsw-cpp-bench"
 version = "0.1.0"
 description = "Local recall vs QPS benchmarks for vector search libraries"
 requires-python = ">=3.11"
