@@ -1,13 +1,13 @@
-# VecSearch
+# HNSW.cpp
 
-VecSearch is a collection of vector search algorithms and a local benchmark
+This is a vector search algorithm for ann search with a local benchmark
 harness for comparing them on the same data, metric, and methodology.
 **hnswlib** is included as the baseline implementation.
 
 The goal is a small, reproducible lab: add an algorithm, point the harness at
 it, and see its recall/QPS trade-off on the same graph as everything else.
 
-![VecSearch recall vs QPS](scripts/bench/results/most_recent.png)
+![Recall vs QPS](scripts/bench/results/most_recent.png)
 
 ## Quick start
 
